@@ -1,0 +1,5 @@
+chroma_data
+logs
+.vscode
+__pycache__
+*.pyc

@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: poc-postgres
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web-app:
+    container_name: poc-web-app
+    build:
+      context: ./services/web-app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/web-app/src:/app/src
+      - ./logs:/var/log/app
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres/appdb
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  fluentd:
+    container_name: poc-fluentd
+    build:
+      context: ./services/fluentd
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    volumes:
+      - ./logs:/var/log/app
+      - ./services/fluentd/conf:/fluentd/etc
+
+  embedding-service:
+    container_name: poc-embedding-service
+    build:
+      context: ./services/embedding-service
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./services/embedding-service/src:/app/src
+    depends_on:
+      - chroma
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: poc-chroma
+    ports:
+      - "8001:8000" # Host port 8001 to avoid conflict with web-app
+    volumes:
+      - ./services/chroma/chroma_data:/data
+
+  anomaly-detector:
+    container_name: poc-anomaly-detector
+    build:
+      context: ./services/anomaly-detector
+    volumes:
+      - ./services/anomaly-detector/src:/app/src
+    depends_on:
+      - chroma
+
+  dashboard:
+    container_name: poc-dashboard
+    build:
+      context: ./services/dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./services/dashboard/src:/app/src
+    depends_on:
+      - anomaly-detector
+
+volumes:
+  postgres_data:
+  chroma_data:
