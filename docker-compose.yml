@@ -33,6 +33,7 @@ services:
 
   fluentd:
     container_name: poc-fluentd
+    platform: linux/arm64
     build:
       context: ./services/fluentd
     ports:

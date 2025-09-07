@@ -42,7 +42,7 @@ def run_detection_cycle():
         print(f"Retrieved {len(embeddings)} embeddings.")
 
         # Perform DBSCAN clustering
-        dbscan = DBSCAN(eps=0.5, min_samples=2, metric="cosine")
+        dbscan = DBSCAN(eps=0.5, min_samples=5, metric="cosine")
         clusters = dbscan.fit_predict(np.array(embeddings))
 
         # -1 indicates an anomaly (noise)
