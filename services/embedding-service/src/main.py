@@ -1,8 +1,12 @@
 from fastapi import FastAPI, Body
+from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import chromadb
 from typing import List, Dict, Any
 import time
+
+class Query(BaseModel):
+    text: str
 
 app = FastAPI()
 
@@ -31,37 +35,52 @@ def init_chroma_client():
 chroma_client = init_chroma_client()
 collection = chroma_client.get_or_create_collection(name="log_embeddings")
 
+@app.post("/embed-query")
+def embed_query(query: Query):
+    embedding = model.encode(query.text)
+    return {"embedding": embedding.tolist()}
+
 @app.post("/embed")
 def embed_log(payload: List[Dict[str, Any]] = Body(...)):
-    processed_count = 0
-    for log in payload:
-        try:
-            message = log.get("message", "")
-            if not message:
-                continue
+    messages = [log.get("message") for log in payload if log.get("message")]
+    if not messages:
+        return {"status": "no valid messages to process"}
 
-            embedding = model.encode([message])[0].tolist()
+    try:
+        embeddings = model.encode(messages)
+
+        documents_to_add = []
+        metadatas_to_add = []
+        ids_to_add = []
+
+        for i, log in enumerate(payload):
+            if not log.get("message"):
+                continue
 
             metadata = {
                 "timestamp": log.get("asctime", ""),
                 "level": log.get("levelname", ""),
                 "service": log.get("service", "unknown"),
-                "message": message
+                "message": log.get("message")
             }
 
-            log_id = f"{log.get('asctime', '')}-{processed_count}"
+            documents_to_add.append(log.get("message"))
+            metadatas_to_add.append(metadata)
+            ids_to_add.append(f"{log.get('asctime', '')}-{i}-{log.get('message')[:10]}")
 
+        if documents_to_add:
             collection.add(
-                embeddings=[embedding],
-                documents=[message],
-                metadatas=[metadata],
-                ids=[log_id]
+                embeddings=embeddings.tolist(),
+                documents=documents_to_add,
+                metadatas=metadatas_to_add,
+                ids=ids_to_add
             )
-            processed_count += 1
-        except Exception as e:
-            print(f"Failed to process and add log: {log}. Error: {e}")
 
-    return {"status": "processed", "count": processed_count}
+        return {"status": "processed", "count": len(documents_to_add)}
+
+    except Exception as e:
+        print(f"Failed to process batch of logs. Error: {e}")
+        return {"status": "error", "detail": str(e)}
 
 @app.get("/health")
 def health_check():

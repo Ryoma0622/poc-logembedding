@@ -1,4 +1,8 @@
 streamlit
-chromadb
+chromadb-client
 pandas
 plotly
+requests
+sentence-transformers
+torch
+onnxruntime
