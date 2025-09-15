@@ -27,6 +27,7 @@ services:
       - ./logs:/var/log/app
     environment:
       - DATABASE_URL=postgresql://user:password@postgres/appdb
+      - HUGGING_FACE_CHROMA_TOKEN
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +52,8 @@ services:
       - "8080:8080"
     volumes:
       - ./services/embedding-service/src:/app/src
+    environment:
+      - HUGGING_FACE_CHROMA_TOKEN
     depends_on:
       - chroma
 
@@ -68,6 +71,8 @@ services:
       context: ./services/anomaly-detector
     volumes:
       - ./services/anomaly-detector/src:/app/src
+    environment:
+      - HUGGING_FACE_CHROMA_TOKEN
     depends_on:
       - chroma
 
@@ -79,6 +84,8 @@ services:
       - "8501:8501"
     volumes:
       - ./services/dashboard/src:/app/src
+    environment:
+      - HUGGING_FACE_CHROMA_TOKEN
     depends_on:
       - anomaly-detector
 

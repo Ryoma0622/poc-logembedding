@@ -1,7 +1,20 @@
 import time
 import chromadb
+from chromadb.utils import embedding_functions
 import numpy as np
 from sklearn.cluster import DBSCAN
+import os
+
+HF_TOKEN = os.getenv("HUGGING_FACE_CHROMA_TOKEN")
+
+try:
+    embedding_gemma = embedding_functions.HuggingFaceEmbeddingFunction(
+        api_key=HF_TOKEN,
+        model_name="google/embedding-gemma-300m"
+    )
+except Exception as e:
+    print(f"Embedding Functionの初期化中にエラーが発生しました: {e}")
+    exit()
 
 print("Anomaly detector starting...")
 
@@ -13,7 +26,10 @@ def init_chroma_client():
         try:
             client = chromadb.HttpClient(host='chroma', port=8000)
             # Try a basic operation to check the connection
-            client.get_or_create_collection(name="test-connection")
+            client.get_or_create_collection(
+                name="log_embeddings",
+                embedding_function=embedding_gemma
+            )
             print("Successfully connected to ChromaDB.")
             return client
         except Exception as e:
@@ -30,7 +46,10 @@ chroma_client = init_chroma_client()
 def run_detection_cycle():
     print("Running anomaly detection cycle...")
     try:
-        collection = chroma_client.get_or_create_collection(name="log_embeddings")
+        collection = chroma_client.get_or_create_collection(
+                name="log_embeddings",
+                embedding_function=embedding_gemma
+            )
         # Get all vectors from Chroma
         results = collection.get(include=["embeddings", "metadatas"])
         embeddings = results.get('embeddings')

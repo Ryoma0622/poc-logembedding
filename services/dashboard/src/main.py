@@ -1,6 +1,19 @@
 import streamlit as st
 import chromadb
+from chromadb.utils import embedding_functions
 import pandas as pd
+import os
+
+HF_TOKEN = os.getenv("HUGGING_FACE_CHROMA_TOKEN")
+
+try:
+    embedding_gemma = embedding_functions.HuggingFaceEmbeddingFunction(
+        api_key=HF_TOKEN,
+        model_name="google/embedding-gemma-300m"
+    )
+except Exception as e:
+    print(f"Embedding Functionの初期化中にエラーが発生しました: {e}")
+    exit()
 
 st.set_page_config(layout="wide")
 st.title("Semantic Log Analysis Dashboard")
@@ -21,7 +34,10 @@ if not chroma_client:
     st.warning("ChromaDB client not available. Cannot proceed.")
     st.stop()
 
-collection = chroma_client.get_or_create_collection(name="log_embeddings")
+collection = chroma_client.get_or_create_collection(
+                name="log_embeddings",
+                embedding_function=embedding_gemma
+            )
 
 # --- Search Section ---
 st.header("Log Search")
